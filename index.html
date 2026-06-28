@@ -1,0 +1,1268 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>헬스 기록</title>
+<style>
+  :root {
+    --bg: #F7F7F4;
+    --surface: #FFFFFF;
+    --surface-alt: #F0EFE9;
+    --border: #E3E1D8;
+    --text-primary: #1F1F1D;
+    --text-secondary: #6F6E66;
+    --text-muted: #9B9A91;
+    --accent: #E8602C;
+    --accent-soft: #FCE7DB;
+    --accent-text: #B8431A;
+    --success: #2F9E5B;
+    --success-soft: #E3F3E9;
+    --danger: #D64545;
+    --danger-soft: #FBE7E7;
+    --radius: 10px;
+    --radius-sm: 6px;
+    font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard", "Malgun Gothic", "Segoe UI", sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #18181A;
+      --surface: #222224;
+      --surface-alt: #2A2A2D;
+      --border: #3A3A3C;
+      --text-primary: #F1F0EC;
+      --text-secondary: #ACAAA3;
+      --text-muted: #75736C;
+      --accent: #FF8A5B;
+      --accent-soft: #3B2A1F;
+      --accent-text: #FFAE85;
+      --success: #5FD08A;
+      --success-soft: #1E3327;
+      --danger: #FF6B6B;
+      --danger-soft: #3A2222;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text-primary);
+    line-height: 1.5;
+  }
+  #app {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 20px 16px 60px;
+  }
+  .app-title {
+    font-size: 20px;
+    font-weight: 700;
+    margin: 4px 0 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .app-title .dot {
+    width: 9px; height: 9px; border-radius: 50%;
+    background: var(--accent);
+    display: inline-block;
+  }
+  .backup-row {
+    display: flex;
+    gap: 8px;
+    margin: -4px 0 12px;
+  }
+  .btn-bordered {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-size: 12.5px;
+    padding: 6px 12px;
+    cursor: pointer;
+  }
+  .btn-bordered:hover { border-color: var(--accent); color: var(--accent-text); }
+  .layout {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 16px;
+    align-items: start;
+  }
+  @media (max-width: 720px) {
+    .layout { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 480px) {
+    .time-section { flex-direction: column; align-items: stretch; }
+    .time-field { min-width: 0; width: 100%; }
+    .duration-display { padding-bottom: 0; text-align: left; }
+  }
+  .card {
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: 14px;
+    padding: 16px;
+  }
+  /* Calendar */
+  .calendar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .calendar-header button {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 18px;
+    cursor: pointer;
+    padding: 4px 10px;
+    border-radius: var(--radius-sm);
+  }
+  .calendar-header button:hover { background: var(--surface-alt); }
+  .month-label { font-size: 15px; font-weight: 600; }
+  .month-stat {
+    font-size: 12.5px;
+    color: var(--text-secondary);
+    margin: -4px 0 12px;
+  }
+  .weekday-row {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    font-size: 11.5px;
+    color: var(--text-muted);
+    text-align: center;
+    margin-bottom: 4px;
+  }
+  .calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 3px;
+  }
+  .day-cell {
+    aspect-ratio: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--text-primary);
+    background: transparent;
+    border: 1px solid transparent;
+    position: relative;
+    user-select: none;
+  }
+  .day-cell:hover { background: var(--surface-alt); }
+  .day-cell.empty { cursor: default; }
+  .day-cell.empty:hover { background: transparent; }
+  .day-cell.today { border-color: var(--text-muted); }
+  .day-cell.selected {
+    background: var(--accent);
+    color: #fff;
+    font-weight: 700;
+  }
+  .day-cell .rec-dot {
+    width: 4px; height: 4px; border-radius: 50%;
+    background: var(--accent);
+    position: absolute;
+    bottom: 4px;
+  }
+  .day-cell.selected .rec-dot { background: #fff; }
+
+  /* Panel */
+  .panel-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .panel-header h2 { font-size: 17px; font-weight: 700; margin: 0; }
+  .text-btn {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 13px;
+    cursor: pointer;
+    padding: 4px 8px;
+  }
+  .text-btn:hover { color: var(--danger); }
+
+  .time-section {
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+    padding-bottom: 16px;
+    border-bottom: 0.5px solid var(--border);
+  }
+  .time-field { flex: 1; min-width: 130px; }
+  .time-field label {
+    display: block;
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+  }
+  .time-input-group { display: flex; gap: 8px; min-width: 0; align-items: stretch; }
+  .time-input-group input[type="time"] { flex: 1; min-width: 0; height: 44px; }
+  .time-input-group .quick-btn { flex-shrink: 0; }
+  input[type="time"], input[type="text"], input[type="number"] {
+    background: var(--surface-alt);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 8px 10px;
+    font-size: 14px;
+    color: var(--text-primary);
+    width: 100%;
+    min-height: 18px;
+  }
+  input::placeholder { color: var(--text-muted); }
+  input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .quick-btn {
+    background: var(--accent-soft);
+    border: 1px solid var(--accent);
+    border-radius: var(--radius-sm);
+    color: var(--accent-text);
+    font-size: 14px;
+    font-weight: 700;
+    padding: 0 16px;
+    height: 44px;
+    min-width: 72px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .quick-btn:hover { opacity: 0.85; }
+  .quick-btn:active { transform: scale(0.97); }
+  .quick-btn.set {
+    background: var(--success-soft);
+    border-color: var(--success);
+    color: var(--success);
+  }
+  .duration-display {
+    font-size: 13px;
+    color: var(--accent-text);
+    font-weight: 600;
+    white-space: nowrap;
+    padding-bottom: 8px;
+  }
+
+  .section-label {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    margin: 0 0 10px;
+  }
+  .exercise-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+  .exercise-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--surface-alt);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+  }
+  .exercise-num {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--accent-soft);
+    color: var(--accent-text);
+    font-size: 11.5px;
+    font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .exercise-info { flex: 1; min-width: 0; }
+  .exercise-info .name { font-size: 14px; font-weight: 600; }
+  .exercise-info .detail { font-size: 12.5px; color: var(--text-secondary); }
+  .exercise-actions { display: flex; gap: 2px; flex-shrink: 0; }
+  .icon-btn {
+    background: none; border: none; cursor: pointer;
+    color: var(--text-muted);
+    font-size: 14px;
+    padding: 4px 6px;
+    border-radius: var(--radius-sm);
+    line-height: 1;
+  }
+  .icon-btn:hover { background: var(--border); color: var(--text-primary); }
+  .icon-btn.danger:hover { color: var(--danger); }
+
+  .empty-state {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 13px;
+    padding: 20px 0;
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-sm);
+    margin-bottom: 14px;
+  }
+
+  .add-form {
+    background: var(--surface-alt);
+    border-radius: var(--radius);
+    padding: 12px;
+  }
+  .type-toggle { display: flex; gap: 6px; margin-bottom: 10px; }
+  .type-btn {
+    flex: 1;
+    padding: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: var(--radius-sm);
+    border: 0.5px solid var(--border);
+    background: var(--surface);
+    color: var(--text-secondary);
+    cursor: pointer;
+  }
+  .type-btn.active {
+    background: var(--accent-soft);
+    color: var(--accent-text);
+    border-color: var(--accent);
+  }
+  .icon-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+  }
+  @media (max-width: 480px) {
+    .icon-grid { grid-template-columns: repeat(3, 1fr); }
+  }
+  .icon-btn-tile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px 4px 8px;
+    cursor: pointer;
+    color: var(--text-secondary);
+  }
+  .icon-btn-tile svg { width: 28px; height: 28px; stroke: currentColor; flex-shrink: 0; }
+  .icon-btn-tile span { font-size: 10.5px; line-height: 1.2; text-align: center; }
+  .icon-btn-tile:hover { border-color: var(--accent); }
+  .icon-btn-tile.active {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+    color: var(--accent-text);
+  }
+  .custom-name-input { margin-top: 10px; }
+  .selected-exercise-label {
+    text-align: center;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--accent-text);
+    margin: 14px 0 2px;
+  }
+  .dial-group { display: flex; gap: 10px; justify-content: center; margin: 8px 0 12px; }
+  .dial-col { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .dial-label { font-size: 11.5px; color: var(--text-secondary); }
+  .dial-wheel-outer { position: relative; width: 84px; height: 132px; }
+  .dial-scroll {
+    height: 132px;
+    overflow-y: scroll;
+    scroll-snap-type: y mandatory;
+    -webkit-overflow-scrolling: touch;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    scrollbar-width: none;
+  }
+  .dial-scroll::-webkit-scrollbar { display: none; }
+  .dial-pad { height: 44px; }
+  .dial-item {
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    scroll-snap-align: center;
+    font-size: 14px;
+    color: var(--text-muted);
+    cursor: pointer;
+    user-select: none;
+  }
+  .dial-item.active { color: var(--accent-text); font-weight: 700; font-size: 16px; }
+  .dial-highlight {
+    position: absolute;
+    top: 44px; left: 0; right: 0; height: 44px;
+    border-top: 1.5px solid var(--accent);
+    border-bottom: 1.5px solid var(--accent);
+    pointer-events: none;
+  }
+  .cancel-select-row { text-align: center; margin-bottom: 4px; }
+  .primary-btn {
+    width: 100%;
+    margin-top: 10px;
+    padding: 10px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .primary-btn:hover { opacity: 0.92; }
+  .primary-btn.editing { background: var(--success); }
+
+  .save-indicator {
+    text-align: center;
+    font-size: 12px;
+    color: var(--success);
+    height: 18px;
+    margin-top: 8px;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .save-indicator.show { opacity: 1; }
+  .save-indicator.error { color: var(--danger); }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="app-title"><span class="dot"></span>헬스 기록</div>
+  <div class="backup-row">
+    <button class="btn-bordered" id="exportBtn">백업 다운로드</button>
+    <button class="btn-bordered" id="importBtn">백업 불러오기</button>
+    <input type="file" id="importFile" accept="application/json" style="display:none;">
+  </div>
+  <div class="layout">
+    <div class="card">
+      <div class="calendar-header">
+        <button id="prevMonth" aria-label="이전 달">‹</button>
+        <span class="month-label" id="monthLabel">-</span>
+        <button id="nextMonth" aria-label="다음 달">›</button>
+      </div>
+      <div class="month-stat" id="monthStat"></div>
+      <div class="weekday-row">
+        <span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span>
+      </div>
+      <div class="calendar-grid" id="calendarGrid"></div>
+    </div>
+
+    <div class="card">
+      <div class="panel-header">
+        <h2 id="selectedDateLabel">-</h2>
+        <button class="text-btn" id="deleteDayBtn">이 날짜 기록 삭제</button>
+      </div>
+
+      <div class="time-section">
+        <div class="time-field">
+          <label>시작 시간</label>
+          <div class="time-input-group">
+            <input type="time" id="startTime">
+            <button class="quick-btn" id="setStartNow">지금</button>
+          </div>
+        </div>
+        <div class="time-field">
+          <label>종료 시간</label>
+          <div class="time-input-group">
+            <input type="time" id="endTime">
+            <button class="quick-btn" id="setEndNow">지금</button>
+          </div>
+        </div>
+        <div class="duration-display" id="durationDisplay"></div>
+      </div>
+
+      <p class="section-label">운동 목록</p>
+      <div class="exercise-list" id="exerciseList"></div>
+      <div class="empty-state" id="emptyState">아직 추가된 운동이 없어요. 아래에서 추가해보세요.</div>
+
+      <div class="add-form">
+        <div class="type-toggle">
+          <button class="type-btn active" data-type="strength" id="strengthTypeBtn">근력 운동</button>
+          <button class="type-btn" data-type="cardio" id="cardioTypeBtn">유산소 운동</button>
+        </div>
+
+        <div class="icon-grid" id="strengthIconGrid"></div>
+        <div class="icon-grid" id="cardioIconGrid" style="display:none;"></div>
+
+        <input type="text" class="custom-name-input" id="customNameInput" placeholder="운동 이름을 입력하세요" style="display:none;">
+
+        <div id="dialSection" style="display:none;">
+          <p class="selected-exercise-label" id="selectedExerciseLabel"></p>
+          <div class="dial-group" id="strengthDials">
+            <div class="dial-col">
+              <span class="dial-label">무게</span>
+              <div class="dial-wheel-outer"><div class="dial-highlight"></div><div class="dial-scroll" id="weightDialScroll"></div></div>
+            </div>
+            <div class="dial-col">
+              <span class="dial-label">횟수</span>
+              <div class="dial-wheel-outer"><div class="dial-highlight"></div><div class="dial-scroll" id="repsDialScroll"></div></div>
+            </div>
+            <div class="dial-col">
+              <span class="dial-label">세트</span>
+              <div class="dial-wheel-outer"><div class="dial-highlight"></div><div class="dial-scroll" id="setsDialScroll"></div></div>
+            </div>
+          </div>
+          <div class="dial-group" id="cardioDials" style="display:none;">
+            <div class="dial-col">
+              <span class="dial-label">속도</span>
+              <div class="dial-wheel-outer"><div class="dial-highlight"></div><div class="dial-scroll" id="speedDialScroll"></div></div>
+            </div>
+            <div class="dial-col">
+              <span class="dial-label">시간(분)</span>
+              <div class="dial-wheel-outer"><div class="dial-highlight"></div><div class="dial-scroll" id="durationDialScroll"></div></div>
+            </div>
+          </div>
+          <div class="cancel-select-row">
+            <button class="text-btn" id="cancelSelectBtn">다른 운동 선택</button>
+          </div>
+        </div>
+
+        <button class="primary-btn" id="addExerciseBtn" style="display:none;">+ 운동 추가</button>
+      </div>
+      <div class="save-indicator" id="saveIndicator"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  // localStorage 기반 저장소 (Claude 아티팩트 전용 window.storage 대신 사용)
+  // 실제 도메인(https)에 배포하면 같은 브라우저에서 데이터가 계속 유지됩니다.
+  window.storage = {
+    get: function (key) {
+      return new Promise(function (resolve, reject) {
+        try {
+          var v = localStorage.getItem(key);
+          if (v === null) { reject(new Error('not found')); return; }
+          resolve({ key: key, value: v });
+        } catch (e) { reject(e); }
+      });
+    },
+    set: function (key, value) {
+      return new Promise(function (resolve, reject) {
+        try {
+          localStorage.setItem(key, value);
+          resolve({ key: key, value: value });
+        } catch (e) { reject(e); }
+      });
+    },
+    delete: function (key) {
+      return new Promise(function (resolve, reject) {
+        try {
+          localStorage.removeItem(key);
+          resolve({ key: key, deleted: true });
+        } catch (e) { reject(e); }
+      });
+    },
+    list: function (prefix) {
+      return new Promise(function (resolve, reject) {
+        try {
+          var keys = [];
+          for (var i = 0; i < localStorage.length; i++) {
+            var k = localStorage.key(i);
+            if (!prefix || k.indexOf(prefix) === 0) keys.push(k);
+          }
+          resolve({ keys: keys });
+        } catch (e) { reject(e); }
+      });
+    }
+  };
+
+  var KEY_PREFIX = 'workout:';
+  var WEEKDAY_NAMES = ['일','월','화','수','목','금','토'];
+  var DIAL_ITEM_HEIGHT = 44;
+
+  var ICONS = {
+    benchPress: '<svg viewBox="0 0 40 40" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="14" x2="36" y2="14"/><rect x="2" y="9" width="5" height="10"/><rect x="33" y="9" width="5" height="10"/><rect x="9" y="25" width="22" height="5" rx="1"/><line x1="12" y1="30" x2="12" y2="35"/><line x1="28" y1="30" x2="28" y2="35"/></svg>',
+    squat: '<svg viewBox="0 0 40 40" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="8" y2="36"/><line x1="32" y1="6" x2="32" y2="36"/><line x1="4" y1="16" x2="36" y2="16"/><rect x="2" y="11" width="5" height="10"/><rect x="33" y="11" width="5" height="10"/><line x1="4" y1="36" x2="12" y2="36"/><line x1="28" y1="36" x2="36" y2="36"/></svg>',
+    deadlift: '<svg viewBox="0 0 40 40" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="2" y1="32" x2="38" y2="32"/><line x1="6" y1="26" x2="34" y2="26"/><rect x="3" y="20" width="6" height="12"/><rect x="31" y="20" width="6" height="12"/></svg>',
+    latPulldown: '<svg viewBox="0 0 40 40" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="20" y1="4" x2="20" y2="34"/><circle cx="20" cy="6" r="2.5"/><path d="M10 15 L20 10 L30 15"/><rect x="13" y="22" width="14" height="12"/><line x1="13" y1="25.5" x2="27" y2="25.5"/><line x1="13" y1="29" x2="27" y2="29"/><line x1="13" y1="32.5" x2="27" y2="32.5"/></svg>',
+    cable: '<svg viewBox="0 0 40 40" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="4" x2="8" y2="34"/><circle cx="8" cy="8" r="2.5"/><line x1="9" y1="10" x2="24" y2="22"/><path d="M22 19 q5 0 5 4.5 q0 4.5 -5 4.5"/><rect x="2" y="22" width="11" height="12"/><line x1="2" y1="25.5" x2="13" y2="25.5"/><line x1="2" y1="29" x2="13" y2="29"/></svg>',
+    legPress: '<svg viewBox="0 0 40 40" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 32 L18 32 L27 13"/><path d="M27 7 L34 11 L30 20 L23 16 Z"/><line x1="3" y1="34" x2="37" y2="34"/></svg>',
+    shoulderPress: '<svg viewBox="0 0 40 40" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="14" y="18" width="5" height="17"/><line x1="10" y1="10" x2="10" y2="19"/><line x1="26" y1="10" x2="26" y2="19"/><circle cx="10" cy="7" r="2.5"/><circle cx="26" cy="7" r="2.5"/><rect x="9" y="34" width="18" height="3"/></svg>',
+    barbellRow: '<svg viewBox="0 0 40 40" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="2" y1="32" x2="38" y2="32"/><line x1="6" y1="26" x2="34" y2="26"/><rect x="3" y="21" width="6" height="10"/><rect x="31" y="21" width="6" height="10"/><line x1="20" y1="20" x2="20" y2="9"/><path d="M16 13 L20 7 L24 13"/></svg>',
+    dumbbell: '<svg viewBox="0 0 40 40" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="11" y1="20" x2="29" y2="20"/><rect x="6" y="13" width="7" height="14" rx="2"/><rect x="27" y="13" width="7" height="14" rx="2"/></svg>',
+    treadmill: '<svg viewBox="0 0 40 40" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 30 L30 30 L34 21 L13 21 Z"/><line x1="29" y1="21" x2="33" y2="9"/><rect x="29" y="5" width="9" height="6" rx="1"/><line x1="6" y1="30" x2="6" y2="34"/><line x1="26" y1="30" x2="26" y2="34"/></svg>',
+    bike: '<svg viewBox="0 0 40 40" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="14" cy="23" r="8"/><line x1="14" y1="23" x2="24" y2="9"/><line x1="20" y1="9" x2="28" y2="9"/><line x1="14" y1="23" x2="20" y2="29"/><circle cx="20" cy="29" r="1.6"/><line x1="6" y1="34" x2="34" y2="34"/></svg>',
+    elliptical: '<svg viewBox="0 0 40 40" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="20" cy="27" rx="15" ry="5"/><line x1="10" y1="27" x2="8" y2="8"/><line x1="30" y1="27" x2="32" y2="8"/><line x1="4" y1="8" x2="12" y2="8"/><line x1="28" y1="8" x2="36" y2="8"/></svg>',
+    rower: '<svg viewBox="0 0 40 40" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="32" x2="37" y2="32"/><rect x="15" y="26" width="9" height="5"/><line x1="24" y1="28" x2="35" y2="18"/><line x1="32" y1="20" x2="37" y2="15"/><line x1="6" y1="22" x2="6" y2="32"/></svg>',
+    stairs: '<svg viewBox="0 0 40 40" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 34 L5 28 L13 28 L13 22 L21 22 L21 16 L29 16 L29 9 L34 9"/><line x1="34" y1="9" x2="34" y2="34"/><line x1="5" y1="34" x2="34" y2="34"/></svg>',
+    custom: '<svg viewBox="0 0 40 40" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="3 3"><rect x="5" y="5" width="30" height="30" rx="5"/><line x1="20" y1="13" x2="20" y2="27" stroke-dasharray="0"/><line x1="13" y1="20" x2="27" y2="20" stroke-dasharray="0"/></svg>'
+  };
+
+  var PRESETS = {
+    strength: [
+      { name: '벤치프레스', icon: ICONS.benchPress },
+      { name: '스쿼트', icon: ICONS.squat },
+      { name: '데드리프트', icon: ICONS.deadlift },
+      { name: '랫풀다운', icon: ICONS.latPulldown },
+      { name: '케이블 머신', icon: ICONS.cable },
+      { name: '레그프레스', icon: ICONS.legPress },
+      { name: '숄더프레스', icon: ICONS.shoulderPress },
+      { name: '바벨로우', icon: ICONS.barbellRow },
+      { name: '덤벨컬', icon: ICONS.dumbbell },
+      { name: '직접입력', icon: ICONS.custom, custom: true }
+    ],
+    cardio: [
+      { name: '런닝머신', icon: ICONS.treadmill },
+      { name: '사이클', icon: ICONS.bike },
+      { name: '일립티컬', icon: ICONS.elliptical },
+      { name: '로잉머신', icon: ICONS.rower },
+      { name: '스텝밀', icon: ICONS.stairs },
+      { name: '직접입력', icon: ICONS.custom, custom: true }
+    ]
+  };
+
+  var dials = {};
+
+  var state = {
+    viewYear: 0,
+    viewMonth: 0, // 0-indexed
+    selectedDate: '',
+    exercises: [],
+    markedDates: new Set(),
+    editingId: null,
+    currentType: 'strength',
+    selectedExerciseName: '',
+    isCustomName: false
+  };
+
+  function pad(n) { return n < 10 ? '0' + n : '' + n; }
+  function fmtDate(y, m, d) { return y + '-' + pad(m + 1) + '-' + pad(d); }
+  function todayParts() {
+    var t = new Date();
+    return { y: t.getFullYear(), m: t.getMonth(), d: t.getDate() };
+  }
+  function todayStr() {
+    var t = todayParts();
+    return fmtDate(t.y, t.m, t.d);
+  }
+
+  // ---------- Storage ----------
+  function loadAllMarkedDates() {
+    window.storage.list(KEY_PREFIX, false).then(function (res) {
+      state.markedDates = new Set();
+      if (res && res.keys) {
+        res.keys.forEach(function (k) {
+          state.markedDates.add(k.slice(KEY_PREFIX.length));
+        });
+      }
+      renderCalendar();
+    }).catch(function () {
+      state.markedDates = new Set();
+      renderCalendar();
+    });
+  }
+
+  function loadDay(dateStr) {
+    window.storage.get(KEY_PREFIX + dateStr, false).then(function (res) {
+      if (res && res.value) {
+        try {
+          var data = JSON.parse(res.value);
+          document.getElementById('startTime').value = data.start || '';
+          document.getElementById('endTime').value = data.end || '';
+          state.exercises = Array.isArray(data.exercises) ? data.exercises : [];
+        } catch (e) {
+          resetForm();
+        }
+      } else {
+        resetForm();
+      }
+      renderExerciseList();
+      updateDuration();
+      refreshQuickButtonLabels();
+    }).catch(function () {
+      resetForm();
+      renderExerciseList();
+      updateDuration();
+      refreshQuickButtonLabels();
+    });
+  }
+
+  function resetForm() {
+    document.getElementById('startTime').value = '';
+    document.getElementById('endTime').value = '';
+    state.exercises = [];
+  }
+
+  function saveDay(showIndicator) {
+    var start = document.getElementById('startTime').value;
+    var end = document.getElementById('endTime').value;
+    var hasContent = start || end || state.exercises.length > 0;
+    var indicator = document.getElementById('saveIndicator');
+
+    var action;
+    if (hasContent) {
+      var record = { start: start, end: end, exercises: state.exercises };
+      action = window.storage.set(KEY_PREFIX + state.selectedDate, JSON.stringify(record), false);
+    } else {
+      action = window.storage.delete(KEY_PREFIX + state.selectedDate, false).catch(function () { return null; });
+    }
+
+    action.then(function () {
+      if (hasContent) { state.markedDates.add(state.selectedDate); }
+      else { state.markedDates.delete(state.selectedDate); }
+      renderCalendar();
+      if (showIndicator) {
+        indicator.textContent = '저장됨';
+        indicator.classList.remove('error');
+        indicator.classList.add('show');
+        clearTimeout(window.__saveTimer);
+        window.__saveTimer = setTimeout(function () {
+          indicator.classList.remove('show');
+        }, 1200);
+      }
+    }).catch(function () {
+      indicator.textContent = '저장에 실패했어요. 다시 시도해주세요.';
+      indicator.classList.add('show', 'error');
+    });
+  }
+
+  // ---------- Calendar ----------
+  function renderCalendar() {
+    var y = state.viewYear, m = state.viewMonth;
+    document.getElementById('monthLabel').textContent = y + '년 ' + (m + 1) + '월';
+
+    var countThisMonth = 0;
+    state.markedDates.forEach(function (d) {
+      if (d.indexOf(y + '-' + pad(m + 1)) === 0) countThisMonth++;
+    });
+    document.getElementById('monthStat').textContent =
+      countThisMonth > 0 ? '이번 달 ' + countThisMonth + '일 운동했어요.' : '이번 달 기록이 아직 없어요.';
+
+    var grid = document.getElementById('calendarGrid');
+    grid.innerHTML = '';
+    var firstDow = new Date(y, m, 1).getDay();
+    var daysInMonth = new Date(y, m + 1, 0).getDate();
+    var t = todayParts();
+    var todayKey = todayStr();
+
+    for (var i = 0; i < firstDow; i++) {
+      var blank = document.createElement('div');
+      blank.className = 'day-cell empty';
+      grid.appendChild(blank);
+    }
+
+    for (var d = 1; d <= daysInMonth; d++) {
+      var dateStr = fmtDate(y, m, d);
+      var cell = document.createElement('div');
+      cell.className = 'day-cell';
+      if (dateStr === todayKey) cell.classList.add('today');
+      if (dateStr === state.selectedDate) cell.classList.add('selected');
+
+      var num = document.createElement('span');
+      num.textContent = d;
+      cell.appendChild(num);
+
+      if (state.markedDates.has(dateStr)) {
+        var dot = document.createElement('span');
+        dot.className = 'rec-dot';
+        cell.appendChild(dot);
+      }
+
+      cell.addEventListener('click', function (ds) {
+        return function () { selectDate(ds); };
+      }(dateStr));
+
+      grid.appendChild(cell);
+    }
+  }
+
+  function selectDate(dateStr) {
+    state.selectedDate = dateStr;
+    var parts = dateStr.split('-').map(Number);
+    var dObj = new Date(parts[0], parts[1] - 1, parts[2]);
+    document.getElementById('selectedDateLabel').textContent =
+      parts[1] + '월 ' + parts[2] + '일 (' + WEEKDAY_NAMES[dObj.getDay()] + ')';
+    cancelEditing();
+    loadDay(dateStr);
+    renderCalendar();
+  }
+
+  // ---------- Duration ----------
+  function refreshQuickButtonLabels() {
+    var s = document.getElementById('startTime').value;
+    var e = document.getElementById('endTime').value;
+    var startBtn = document.getElementById('setStartNow');
+    var endBtn = document.getElementById('setEndNow');
+    startBtn.textContent = s || '지금';
+    endBtn.textContent = e || '지금';
+    startBtn.classList.toggle('set', !!s);
+    endBtn.classList.toggle('set', !!e);
+  }
+
+  function updateDuration() {
+    var start = document.getElementById('startTime').value;
+    var end = document.getElementById('endTime').value;
+    var el = document.getElementById('durationDisplay');
+    if (!start || !end) { el.textContent = ''; return; }
+    var sParts = start.split(':').map(Number);
+    var eParts = end.split(':').map(Number);
+    var sMin = sParts[0] * 60 + sParts[1];
+    var eMin = eParts[0] * 60 + eParts[1];
+    var diff = eMin - sMin;
+    if (diff < 0) diff += 24 * 60;
+    if (diff === 0) { el.textContent = ''; return; }
+    var h = Math.floor(diff / 60), mm = diff % 60;
+    var text = '총 ';
+    if (h > 0) text += h + '시간 ';
+    if (mm > 0 || h === 0) text += mm + '분';
+    el.textContent = text.trim();
+  }
+
+  // ---------- Exercise list ----------
+  function exerciseSummary(ex) {
+    if (ex.type === 'cardio') {
+      var parts = [];
+      if (ex.speed) parts.push(ex.speed + ' 속도');
+      if (ex.duration) parts.push(ex.duration + '분');
+      return parts.join(' · ');
+    } else {
+      var p2 = [];
+      p2.push(ex.weight ? ex.weight + 'kg' : '맨몸');
+      if (ex.reps) p2.push(ex.reps + '회');
+      if (ex.sets) p2.push(ex.sets + '세트');
+      return p2.join(' · ');
+    }
+  }
+
+  function renderExerciseList() {
+    var listEl = document.getElementById('exerciseList');
+    var emptyEl = document.getElementById('emptyState');
+    listEl.innerHTML = '';
+
+    if (!state.exercises.length) {
+      emptyEl.style.display = 'block';
+      return;
+    }
+    emptyEl.style.display = 'none';
+
+    state.exercises.forEach(function (ex, idx) {
+      var card = document.createElement('div');
+      card.className = 'exercise-card';
+
+      var numEl = document.createElement('span');
+      numEl.className = 'exercise-num';
+      numEl.textContent = idx + 1;
+      card.appendChild(numEl);
+
+      var info = document.createElement('div');
+      info.className = 'exercise-info';
+      var nameEl = document.createElement('div');
+      nameEl.className = 'name';
+      nameEl.textContent = ex.name + (ex.type === 'cardio' ? ' (유산소)' : '');
+      var detailEl = document.createElement('div');
+      detailEl.className = 'detail';
+      detailEl.textContent = exerciseSummary(ex);
+      info.appendChild(nameEl);
+      info.appendChild(detailEl);
+      card.appendChild(info);
+
+      var actions = document.createElement('div');
+      actions.className = 'exercise-actions';
+
+      if (idx > 0) {
+        var upBtn = document.createElement('button');
+        upBtn.className = 'icon-btn';
+        upBtn.setAttribute('aria-label', '위로 이동');
+        upBtn.textContent = '▲';
+        upBtn.addEventListener('click', function () { moveExercise(idx, -1); });
+        actions.appendChild(upBtn);
+      }
+      if (idx < state.exercises.length - 1) {
+        var downBtn = document.createElement('button');
+        downBtn.className = 'icon-btn';
+        downBtn.setAttribute('aria-label', '아래로 이동');
+        downBtn.textContent = '▼';
+        downBtn.addEventListener('click', function () { moveExercise(idx, 1); });
+        actions.appendChild(downBtn);
+      }
+
+      var editBtn = document.createElement('button');
+      editBtn.className = 'icon-btn';
+      editBtn.setAttribute('aria-label', '수정');
+      editBtn.textContent = '✎';
+      editBtn.addEventListener('click', function () { startEdit(ex.id); });
+      actions.appendChild(editBtn);
+
+      var delBtn = document.createElement('button');
+      delBtn.className = 'icon-btn danger';
+      delBtn.setAttribute('aria-label', '삭제');
+      delBtn.textContent = '✕';
+      delBtn.addEventListener('click', function () { deleteExercise(ex.id); });
+      actions.appendChild(delBtn);
+
+      card.appendChild(actions);
+      listEl.appendChild(card);
+    });
+  }
+
+  function moveExercise(idx, dir) {
+    var newIdx = idx + dir;
+    if (newIdx < 0 || newIdx >= state.exercises.length) return;
+    var tmp = state.exercises[idx];
+    state.exercises[idx] = state.exercises[newIdx];
+    state.exercises[newIdx] = tmp;
+    renderExerciseList();
+    saveDay(false);
+  }
+
+  function deleteExercise(id) {
+    state.exercises = state.exercises.filter(function (ex) { return ex.id !== id; });
+    if (state.editingId === id) cancelEditing();
+    renderExerciseList();
+    saveDay(true);
+  }
+
+  function startEdit(id) {
+    var ex = state.exercises.find(function (e) { return e.id === id; });
+    if (!ex) return;
+    setType(ex.type);
+    state.editingId = id;
+    selectPresetByExercise(ex);
+    if (ex.type === 'cardio') {
+      setDialValue('speed', ex.speed || 6);
+      setDialValue('duration', ex.duration || 20);
+    } else {
+      setDialValue('weight', ex.weight || 0);
+      setDialValue('reps', ex.reps || 1);
+      setDialValue('sets', ex.sets || 1);
+    }
+    var btn = document.getElementById('addExerciseBtn');
+    btn.textContent = '수정 완료';
+    btn.classList.add('editing');
+    document.querySelector('.add-form').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  function cancelEditing() {
+    state.editingId = null;
+    var btn = document.getElementById('addExerciseBtn');
+    btn.textContent = '+ 운동 추가';
+    btn.classList.remove('editing');
+    resetSelection();
+  }
+
+  function resetSelection() {
+    state.selectedExerciseName = '';
+    state.isCustomName = false;
+    var input = document.getElementById('customNameInput');
+    input.style.display = 'none';
+    input.value = '';
+    document.getElementById('dialSection').style.display = 'none';
+    document.getElementById('addExerciseBtn').style.display = 'none';
+    clearIconActive();
+  }
+
+  function clearIconActive() {
+    ['strengthIconGrid', 'cardioIconGrid'].forEach(function (gridId) {
+      var grid = document.getElementById(gridId);
+      Array.prototype.forEach.call(grid.children, function (btn) { btn.classList.remove('active'); });
+    });
+  }
+
+  function setType(type) {
+    state.currentType = type;
+    cancelEditing();
+    document.getElementById('strengthTypeBtn').classList.toggle('active', type === 'strength');
+    document.getElementById('cardioTypeBtn').classList.toggle('active', type === 'cardio');
+    document.getElementById('strengthIconGrid').style.display = type === 'strength' ? 'grid' : 'none';
+    document.getElementById('cardioIconGrid').style.display = type === 'cardio' ? 'grid' : 'none';
+    document.getElementById('strengthDials').style.display = type === 'strength' ? 'flex' : 'none';
+    document.getElementById('cardioDials').style.display = type === 'cardio' ? 'flex' : 'none';
+  }
+
+  function renderIconGrid(containerId, list, type) {
+    var grid = document.getElementById(containerId);
+    grid.innerHTML = '';
+    list.forEach(function (item) {
+      var btn = document.createElement('button');
+      btn.className = 'icon-btn-tile';
+      btn.type = 'button';
+      btn.dataset.name = item.custom ? '__custom__' : item.name;
+      btn.innerHTML = item.icon + '<span>' + (item.custom ? '직접입력' : item.name) + '</span>';
+      btn.addEventListener('click', function () { selectPreset(item, type, false); });
+      grid.appendChild(btn);
+    });
+  }
+
+  function highlightIcon(item, type) {
+    var gridId = type === 'strength' ? 'strengthIconGrid' : 'cardioIconGrid';
+    var grid = document.getElementById(gridId);
+    var targetName = item.custom ? '__custom__' : item.name;
+    Array.prototype.forEach.call(grid.children, function (btn) {
+      btn.classList.toggle('active', btn.dataset.name === targetName);
+    });
+  }
+
+  function selectPreset(item, type, isEditRestore) {
+    state.currentType = type;
+    var input = document.getElementById('customNameInput');
+    if (item.custom) {
+      state.isCustomName = true;
+      state.selectedExerciseName = '';
+      input.style.display = 'block';
+      if (!isEditRestore) input.value = '';
+      setTimeout(function () { input.focus(); }, 0);
+    } else {
+      state.isCustomName = false;
+      state.selectedExerciseName = item.name;
+      input.style.display = 'none';
+    }
+    highlightIcon(item, type);
+    document.getElementById('selectedExerciseLabel').textContent = item.custom ? '운동 이름을 입력해주세요' : item.name;
+    document.getElementById('dialSection').style.display = 'block';
+    document.getElementById('addExerciseBtn').style.display = 'block';
+    if (!isEditRestore) resetDialsToDefault(type);
+  }
+
+  function selectPresetByExercise(ex) {
+    var list = PRESETS[ex.type];
+    var match = list.find(function (p) { return !p.custom && p.name === ex.name; });
+    if (match) {
+      selectPreset(match, ex.type, true);
+    } else {
+      var customItem = list[list.length - 1];
+      selectPreset(customItem, ex.type, true);
+      document.getElementById('customNameInput').value = ex.name;
+    }
+  }
+
+  // ---------- Dial picker ----------
+  function fmtNum(v) { return (Math.round(v * 100) / 100).toString(); }
+
+  function buildDial(key, scrollElId, min, max, step, labelFn) {
+    var scrollEl = document.getElementById(scrollElId);
+    scrollEl.innerHTML = '';
+    var pad1 = document.createElement('div');
+    pad1.className = 'dial-pad';
+    scrollEl.appendChild(pad1);
+
+    var values = [];
+    for (var v = min; v <= max + step / 2; v += step) {
+      values.push(Math.round(v * 100) / 100);
+    }
+    values.forEach(function (v, i) {
+      var item = document.createElement('div');
+      item.className = 'dial-item';
+      item.textContent = labelFn(v);
+      item.addEventListener('click', function () {
+        scrollEl.scrollTo({ top: i * DIAL_ITEM_HEIGHT, behavior: 'smooth' });
+      });
+      scrollEl.appendChild(item);
+    });
+
+    var pad2 = document.createElement('div');
+    pad2.className = 'dial-pad';
+    scrollEl.appendChild(pad2);
+
+    dials[key] = { values: values, scrollEl: scrollEl };
+
+    var timer;
+    scrollEl.addEventListener('scroll', function () {
+      highlightDialActive(key);
+      clearTimeout(timer);
+      timer = setTimeout(function () { snapDial(key); }, 120);
+    });
+
+    highlightDialActive(key);
+  }
+
+  function getDialIndex(key) {
+    var d = dials[key];
+    var idx = Math.round(d.scrollEl.scrollTop / DIAL_ITEM_HEIGHT);
+    if (idx < 0) idx = 0;
+    if (idx > d.values.length - 1) idx = d.values.length - 1;
+    return idx;
+  }
+
+  function getDialValue(key) {
+    var d = dials[key];
+    return d.values[getDialIndex(key)];
+  }
+
+  function setDialValue(key, value) {
+    var d = dials[key];
+    if (!d) return;
+    var idx = 0, best = Infinity;
+    d.values.forEach(function (v, i) {
+      var diff = Math.abs(v - value);
+      if (diff < best) { best = diff; idx = i; }
+    });
+    d.scrollEl.scrollTop = idx * DIAL_ITEM_HEIGHT;
+    highlightDialActive(key);
+  }
+
+  function highlightDialActive(key) {
+    var d = dials[key];
+    if (!d) return;
+    var idx = getDialIndex(key);
+    for (var i = 0; i < d.values.length; i++) {
+      d.scrollEl.children[i + 1].classList.toggle('active', i === idx);
+    }
+  }
+
+  function snapDial(key) {
+    var d = dials[key];
+    var idx = getDialIndex(key);
+    d.scrollEl.scrollTo({ top: idx * DIAL_ITEM_HEIGHT, behavior: 'smooth' });
+    highlightDialActive(key);
+  }
+
+  function resetDialsToDefault(type) {
+    if (type === 'cardio') {
+      setDialValue('speed', 6);
+      setDialValue('duration', 20);
+    } else {
+      setDialValue('weight', 20);
+      setDialValue('reps', 10);
+      setDialValue('sets', 3);
+    }
+  }
+
+  function initDials() {
+    buildDial('weight', 'weightDialScroll', 0, 200, 2.5, function (v) { return v === 0 ? '맨몸' : fmtNum(v) + 'kg'; });
+    buildDial('reps', 'repsDialScroll', 1, 30, 1, function (v) { return v + '회'; });
+    buildDial('sets', 'setsDialScroll', 1, 10, 1, function (v) { return v + '세트'; });
+    buildDial('speed', 'speedDialScroll', 1, 20, 0.5, function (v) { return fmtNum(v) + ' km/h'; });
+    buildDial('duration', 'durationDialScroll', 1, 120, 1, function (v) { return v + '분'; });
+  }
+
+  function addOrUpdateExercise() {
+    var name = state.isCustomName ? document.getElementById('customNameInput').value.trim() : state.selectedExerciseName;
+    if (!name) {
+      document.getElementById('customNameInput').focus();
+      return;
+    }
+    var ex;
+    if (state.currentType === 'cardio') {
+      ex = { id: state.editingId || ('ex_' + Date.now()), type: 'cardio', name: name, speed: getDialValue('speed'), duration: getDialValue('duration') };
+    } else {
+      ex = { id: state.editingId || ('ex_' + Date.now()), type: 'strength', name: name, weight: getDialValue('weight'), reps: getDialValue('reps'), sets: getDialValue('sets') };
+    }
+
+    if (state.editingId) {
+      var idx = state.exercises.findIndex(function (e) { return e.id === state.editingId; });
+      if (idx > -1) state.exercises[idx] = ex;
+    } else {
+      state.exercises.push(ex);
+    }
+
+    cancelEditing();
+    renderExerciseList();
+    saveDay(true);
+  }
+
+  // ---------- Wire up events ----------
+  document.getElementById('prevMonth').addEventListener('click', function () {
+    state.viewMonth--;
+    if (state.viewMonth < 0) { state.viewMonth = 11; state.viewYear--; }
+    renderCalendar();
+  });
+  document.getElementById('nextMonth').addEventListener('click', function () {
+    state.viewMonth++;
+    if (state.viewMonth > 11) { state.viewMonth = 0; state.viewYear++; }
+    renderCalendar();
+  });
+
+  document.getElementById('strengthTypeBtn').addEventListener('click', function () { setType('strength'); });
+  document.getElementById('cardioTypeBtn').addEventListener('click', function () { setType('cardio'); });
+  document.getElementById('addExerciseBtn').addEventListener('click', addOrUpdateExercise);
+  document.getElementById('cancelSelectBtn').addEventListener('click', cancelEditing);
+
+  document.getElementById('startTime').addEventListener('change', function () { updateDuration(); refreshQuickButtonLabels(); saveDay(true); });
+  document.getElementById('endTime').addEventListener('change', function () { updateDuration(); refreshQuickButtonLabels(); saveDay(true); });
+
+  document.getElementById('setStartNow').addEventListener('click', function () {
+    if (!confirm('운동을 시작 하시겠습니까?')) return;
+    var now = new Date();
+    document.getElementById('startTime').value = pad(now.getHours()) + ':' + pad(now.getMinutes());
+    updateDuration();
+    refreshQuickButtonLabels();
+    saveDay(true);
+  });
+  document.getElementById('setEndNow').addEventListener('click', function () {
+    if (!confirm('운동을 종료 하시겠습니까?')) return;
+    var now = new Date();
+    document.getElementById('endTime').value = pad(now.getHours()) + ':' + pad(now.getMinutes());
+    updateDuration();
+    refreshQuickButtonLabels();
+    saveDay(true);
+  });
+
+  document.getElementById('deleteDayBtn').addEventListener('click', function () {
+    resetForm();
+    cancelEditing();
+    renderExerciseList();
+    updateDuration();
+    refreshQuickButtonLabels();
+    saveDay(true);
+  });
+
+  // ---------- Backup export / import ----------
+  document.getElementById('exportBtn').addEventListener('click', function () {
+    var data = {};
+    for (var i = 0; i < localStorage.length; i++) {
+      var k = localStorage.key(i);
+      if (k.indexOf(KEY_PREFIX) === 0) data[k] = localStorage.getItem(k);
+    }
+    var blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'workout-backup-' + todayStr() + '.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  });
+
+  document.getElementById('importBtn').addEventListener('click', function () {
+    document.getElementById('importFile').click();
+  });
+
+  document.getElementById('importFile').addEventListener('change', function (e) {
+    var file = e.target.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function () {
+      try {
+        var data = JSON.parse(reader.result);
+        var count = 0;
+        Object.keys(data).forEach(function (k) {
+          if (k.indexOf(KEY_PREFIX) === 0) {
+            localStorage.setItem(k, data[k]);
+            count++;
+          }
+        });
+        loadAllMarkedDates();
+        loadDay(state.selectedDate);
+        alert(count + '일의 기록을 불러왔어요.');
+      } catch (err) {
+        alert('백업 파일을 읽을 수 없어요. 올바른 백업 파일인지 확인해주세요.');
+      }
+      e.target.value = '';
+    };
+    reader.readAsText(file);
+  });
+
+  document.getElementById('customNameInput').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') addOrUpdateExercise();
+  });
+
+  // ---------- Init ----------
+  var t0 = todayParts();
+  state.viewYear = t0.y;
+  state.viewMonth = t0.m;
+  state.selectedDate = todayStr();
+
+  var d0 = new Date(t0.y, t0.m, t0.d);
+  document.getElementById('selectedDateLabel').textContent =
+    (t0.m + 1) + '월 ' + t0.d + '일 (' + WEEKDAY_NAMES[d0.getDay()] + ')';
+
+  renderIconGrid('strengthIconGrid', PRESETS.strength, 'strength');
+  renderIconGrid('cardioIconGrid', PRESETS.cardio, 'cardio');
+  initDials();
+  setType('strength');
+
+  loadAllMarkedDates();
+  loadDay(state.selectedDate);
+})();
+</script>
+</body>
+</html>
