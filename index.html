@@ -20,6 +20,10 @@
     --success-soft: #E3F3E9;
     --danger: #D64545;
     --danger-soft: #FBE7E7;
+    --upper: #3B6FD4;
+    --upper-soft: #E4ECFC;
+    --lower: #8B4FD4;
+    --lower-soft: #EFE4FB;
     --radius: 10px;
     --radius-sm: 6px;
     font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard", "Malgun Gothic", "Segoe UI", sans-serif;
@@ -40,6 +44,10 @@
       --success-soft: #1E3327;
       --danger: #FF6B6B;
       --danger-soft: #3A2222;
+      --upper: #7AAFFF;
+      --upper-soft: #1E2A40;
+      --lower: #C9A0FF;
+      --lower-soft: #2E2240;
     }
   }
   * { box-sizing: border-box; }
@@ -168,18 +176,52 @@
     position: absolute;
     bottom: 4px;
   }
-  .day-cell.selected .rec-dot { background: #fff; }
+  .rec-dot.rec-dot-upper { background: var(--upper); }
+  .rec-dot.rec-dot-lower { background: var(--lower); }
+  .rec-dot.rec-dot-mixed { background: linear-gradient(90deg, var(--upper) 50%, var(--lower) 50%); }
+  .rec-dot.rec-dot-cardio { background: var(--accent); }
+  .day-cell.selected .rec-dot,
+  .day-cell.selected .rec-dot-upper,
+  .day-cell.selected .rec-dot-lower,
+  .day-cell.selected .rec-dot-mixed,
+  .day-cell.selected .rec-dot-cardio { background: #fff; }
 
   /* Panel */
   .panel-header {
     display: flex;
-    align-items: baseline;
+    align-items: center;
     justify-content: space-between;
     margin-bottom: 14px;
     flex-wrap: wrap;
     gap: 8px;
   }
   .panel-header h2 { font-size: 17px; font-weight: 700; margin: 0; }
+  .day-focus-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+  .day-focus-row-label { font-size: 12.5px; color: var(--text-secondary); font-weight: 600; flex-shrink: 0; }
+  .day-focus-toggle { display: flex; gap: 6px; flex-wrap: wrap; }
+  .dft-btn {
+    padding: 6px 14px;
+    font-size: 12.5px;
+    font-weight: 700;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-secondary);
+    cursor: pointer;
+  }
+  .dft-btn[data-focus="upper"].active { background: var(--upper-soft); color: var(--upper); border-color: var(--upper); }
+  .dft-btn[data-focus="lower"].active { background: var(--lower-soft); color: var(--lower); border-color: var(--lower); }
+  .dft-btn[data-focus="mixed"].active {
+    background: linear-gradient(90deg, var(--upper-soft), var(--lower-soft));
+    color: var(--text-primary);
+    border-color: var(--text-muted);
+  }
   .text-btn {
     background: none;
     border: none;
@@ -357,6 +399,31 @@
     color: var(--accent-text);
     margin: 14px 0 2px;
   }
+  .history-section { margin: 8px 0 4px; }
+  .history-title {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin: 0 0 6px;
+    font-weight: 600;
+    text-align: center;
+  }
+  .history-list { display: flex; flex-direction: column; gap: 4px; max-height: 160px; overflow-y: auto; }
+  .history-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 6px 10px;
+    font-size: 12.5px;
+    cursor: pointer;
+    width: 100%;
+    text-align: left;
+  }
+  .history-row:hover { border-color: var(--accent); }
+  .history-row .history-date { color: var(--text-muted); font-size: 11px; flex-shrink: 0; }
+  .history-row .history-detail { color: var(--text-primary); font-weight: 600; flex: 1; text-align: right; }
   .dial-group { display: flex; gap: 10px; justify-content: center; margin: 8px 0 12px; }
   .dial-col { display: flex; flex-direction: column; align-items: center; gap: 6px; }
   .dial-label { font-size: 11.5px; color: var(--text-secondary); }
@@ -449,6 +516,15 @@
         <button class="text-btn" id="deleteDayBtn">이 날짜 기록 삭제</button>
       </div>
 
+      <div class="day-focus-row">
+        <span class="day-focus-row-label">오늘 운동 부위</span>
+        <div class="day-focus-toggle" id="dayFocusToggle">
+          <button class="dft-btn" data-focus="upper" id="dayUpperBtn" type="button">상체</button>
+          <button class="dft-btn" data-focus="lower" id="dayLowerBtn" type="button">하체</button>
+          <button class="dft-btn" data-focus="mixed" id="dayMixedBtn" type="button">상체+하체</button>
+        </div>
+      </div>
+
       <div class="time-section">
         <div class="time-field">
           <label>시작 시간</label>
@@ -484,6 +560,12 @@
 
         <div id="dialSection" style="display:none;">
           <p class="selected-exercise-label" id="selectedExerciseLabel"></p>
+
+          <div class="history-section" id="historySection" style="display:none;">
+            <p class="history-title">최근 기록 (탭하면 그 값 적용)</p>
+            <div class="history-list" id="historyList"></div>
+          </div>
+
           <div class="dial-group" id="strengthDials">
             <div class="dial-col">
               <span class="dial-label">무게</span>
@@ -617,10 +699,12 @@
     selectedDate: '',
     exercises: [],
     markedDates: new Set(),
+    dayCategories: {},
     editingId: null,
     currentType: 'strength',
     selectedExerciseName: '',
-    isCustomName: false
+    isCustomName: false,
+    dayBodyFocus: ''
   };
 
   function pad(n) { return n < 10 ? '0' + n : '' + n; }
@@ -634,18 +718,52 @@
     return fmtDate(t.y, t.m, t.d);
   }
 
+  // ---------- Body part categorization (day-level) ----------
+  function categorizeDay(bodyFocus, exercises) {
+    if (bodyFocus === 'mixed') return { label: '상체 + 하체', cls: 'mixed' };
+    if (bodyFocus === 'upper') return { label: '상체', cls: 'upper' };
+    if (bodyFocus === 'lower') return { label: '하체', cls: 'lower' };
+    var hasCardio = (exercises || []).some(function (ex) { return ex.type === 'cardio'; });
+    if (hasCardio) return { label: '유산소', cls: 'cardio' };
+    return null;
+  }
+
+  function setDayFocus(focus) {
+    state.dayBodyFocus = (state.dayBodyFocus === focus) ? '' : focus;
+    syncDayFocusToggle();
+    saveDay(true);
+  }
+
+  function syncDayFocusToggle() {
+    ['dayUpperBtn', 'dayLowerBtn', 'dayMixedBtn'].forEach(function (id) {
+      var btn = document.getElementById(id);
+      btn.classList.toggle('active', btn.dataset.focus === state.dayBodyFocus);
+    });
+  }
+
   // ---------- Storage ----------
   function loadAllMarkedDates() {
     window.storage.list(KEY_PREFIX, false).then(function (res) {
       state.markedDates = new Set();
+      state.dayCategories = {};
       if (res && res.keys) {
         res.keys.forEach(function (k) {
-          state.markedDates.add(k.slice(KEY_PREFIX.length));
+          var dateStr = k.slice(KEY_PREFIX.length);
+          state.markedDates.add(dateStr);
+          try {
+            var raw = localStorage.getItem(k);
+            if (raw) {
+              var data = JSON.parse(raw);
+              var cat = categorizeDay(data.bodyFocus || '', data.exercises || []);
+              if (cat) state.dayCategories[dateStr] = cat.cls;
+            }
+          } catch (e) { /* 손상된 기록은 무시 */ }
         });
       }
       renderCalendar();
     }).catch(function () {
       state.markedDates = new Set();
+      state.dayCategories = {};
       renderCalendar();
     });
   }
@@ -658,6 +776,7 @@
           document.getElementById('startTime').value = data.start || '';
           document.getElementById('endTime').value = data.end || '';
           state.exercises = Array.isArray(data.exercises) ? data.exercises : [];
+          state.dayBodyFocus = data.bodyFocus || '';
         } catch (e) {
           resetForm();
         }
@@ -667,11 +786,13 @@
       renderExerciseList();
       updateDuration();
       refreshQuickButtonLabels();
+      syncDayFocusToggle();
     }).catch(function () {
       resetForm();
       renderExerciseList();
       updateDuration();
       refreshQuickButtonLabels();
+      syncDayFocusToggle();
     });
   }
 
@@ -679,25 +800,33 @@
     document.getElementById('startTime').value = '';
     document.getElementById('endTime').value = '';
     state.exercises = [];
+    state.dayBodyFocus = '';
   }
 
   function saveDay(showIndicator) {
     var start = document.getElementById('startTime').value;
     var end = document.getElementById('endTime').value;
-    var hasContent = start || end || state.exercises.length > 0;
+    var hasContent = start || end || state.exercises.length > 0 || state.dayBodyFocus;
     var indicator = document.getElementById('saveIndicator');
 
     var action;
     if (hasContent) {
-      var record = { start: start, end: end, exercises: state.exercises };
+      var record = { start: start, end: end, bodyFocus: state.dayBodyFocus, exercises: state.exercises };
       action = window.storage.set(KEY_PREFIX + state.selectedDate, JSON.stringify(record), false);
     } else {
       action = window.storage.delete(KEY_PREFIX + state.selectedDate, false).catch(function () { return null; });
     }
 
     action.then(function () {
-      if (hasContent) { state.markedDates.add(state.selectedDate); }
-      else { state.markedDates.delete(state.selectedDate); }
+      if (hasContent) {
+        state.markedDates.add(state.selectedDate);
+        var cat = categorizeDay(state.dayBodyFocus, state.exercises);
+        if (cat) state.dayCategories[state.selectedDate] = cat.cls;
+        else delete state.dayCategories[state.selectedDate];
+      } else {
+        state.markedDates.delete(state.selectedDate);
+        delete state.dayCategories[state.selectedDate];
+      }
       renderCalendar();
       if (showIndicator) {
         indicator.textContent = '저장됨';
@@ -753,6 +882,8 @@
       if (state.markedDates.has(dateStr)) {
         var dot = document.createElement('span');
         dot.className = 'rec-dot';
+        var dotCat = state.dayCategories[dateStr];
+        if (dotCat) dot.classList.add('rec-dot-' + dotCat);
         cell.appendChild(dot);
       }
 
@@ -946,6 +1077,7 @@
     input.value = '';
     document.getElementById('dialSection').style.display = 'none';
     document.getElementById('addExerciseBtn').style.display = 'none';
+    document.getElementById('historySection').style.display = 'none';
     clearIconActive();
   }
 
@@ -999,15 +1131,18 @@
       input.style.display = 'block';
       if (!isEditRestore) input.value = '';
       setTimeout(function () { input.focus(); }, 0);
+      document.getElementById('historySection').style.display = 'none';
     } else {
       state.isCustomName = false;
       state.selectedExerciseName = item.name;
       input.style.display = 'none';
+      renderHistory(item.name, type);
     }
     highlightIcon(item, type);
     document.getElementById('selectedExerciseLabel').textContent = item.custom ? '운동 이름을 입력해주세요' : item.name;
     document.getElementById('dialSection').style.display = 'block';
     document.getElementById('addExerciseBtn').style.display = 'block';
+
     if (!isEditRestore) resetDialsToDefault(type);
   }
 
@@ -1020,6 +1155,69 @@
       var customItem = list[list.length - 1];
       selectPreset(customItem, ex.type, true);
       document.getElementById('customNameInput').value = ex.name;
+      renderHistory(ex.name, ex.type);
+    }
+  }
+
+  // ---------- Exercise history ----------
+  function getExerciseHistory(name, type, limit) {
+    var results = [];
+    for (var i = 0; i < localStorage.length; i++) {
+      var k = localStorage.key(i);
+      if (k.indexOf(KEY_PREFIX) !== 0) continue;
+      var dateStr = k.slice(KEY_PREFIX.length);
+      try {
+        var data = JSON.parse(localStorage.getItem(k));
+        (data.exercises || []).forEach(function (ex) {
+          if (ex.name === name && ex.type === type) {
+            results.push({ date: dateStr, ex: ex });
+          }
+        });
+      } catch (e) { /* 손상된 기록은 무시 */ }
+    }
+    results.sort(function (a, b) { return b.date.localeCompare(a.date); });
+    return results.slice(0, limit || 5);
+  }
+
+  function renderHistory(name, type) {
+    var section = document.getElementById('historySection');
+    var list = document.getElementById('historyList');
+    if (!name) { section.style.display = 'none'; return; }
+
+    var history = getExerciseHistory(name, type, 5).filter(function (h) {
+      return !(state.editingId && h.ex.id === state.editingId);
+    });
+    if (!history.length) { section.style.display = 'none'; return; }
+
+    list.innerHTML = '';
+    history.forEach(function (h) {
+      var row = document.createElement('button');
+      row.type = 'button';
+      row.className = 'history-row';
+      var parts = h.date.split('-');
+      var dateLabel = parts[1] + '/' + parts[2];
+      var dateEl = document.createElement('span');
+      dateEl.className = 'history-date';
+      dateEl.textContent = dateLabel;
+      var detailEl = document.createElement('span');
+      detailEl.className = 'history-detail';
+      detailEl.textContent = exerciseSummary(h.ex);
+      row.appendChild(dateEl);
+      row.appendChild(detailEl);
+      row.addEventListener('click', function () { applyHistoryToDials(h.ex, type); });
+      list.appendChild(row);
+    });
+    section.style.display = 'block';
+  }
+
+  function applyHistoryToDials(ex, type) {
+    if (type === 'cardio') {
+      setDialValue('speed', ex.speed);
+      setDialValue('duration', ex.duration);
+    } else {
+      setDialValue('weight', ex.weight);
+      setDialValue('reps', ex.reps);
+      setDialValue('sets', ex.sets);
     }
   }
 
@@ -1164,6 +1362,9 @@
   document.getElementById('cardioTypeBtn').addEventListener('click', function () { setType('cardio'); });
   document.getElementById('addExerciseBtn').addEventListener('click', addOrUpdateExercise);
   document.getElementById('cancelSelectBtn').addEventListener('click', cancelEditing);
+  document.getElementById('dayUpperBtn').addEventListener('click', function () { setDayFocus('upper'); });
+  document.getElementById('dayLowerBtn').addEventListener('click', function () { setDayFocus('lower'); });
+  document.getElementById('dayMixedBtn').addEventListener('click', function () { setDayFocus('mixed'); });
 
   document.getElementById('startTime').addEventListener('change', function () { updateDuration(); refreshQuickButtonLabels(); saveDay(true); });
   document.getElementById('endTime').addEventListener('change', function () { updateDuration(); refreshQuickButtonLabels(); saveDay(true); });
@@ -1243,6 +1444,11 @@
 
   document.getElementById('customNameInput').addEventListener('keydown', function (e) {
     if (e.key === 'Enter') addOrUpdateExercise();
+  });
+  document.getElementById('customNameInput').addEventListener('input', function () {
+    var name = this.value.trim();
+    if (name) renderHistory(name, state.currentType);
+    else document.getElementById('historySection').style.display = 'none';
   });
 
   // ---------- Init ----------
